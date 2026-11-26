@@ -20,6 +20,7 @@ jobs:
         run: |
           ZIP_FILE=$(ls -t AxiomIDE*.zip 2>/dev/null | head -n 1 || true)
           if [ -n "$ZIP_FILE" ]; then
+            echo "Unpacking $ZIP_FILE..."
             rm -rf app gradle backend settings.gradle.kts build.gradle.kts gradle.properties extracted_src
             unzip -o "$ZIP_FILE" -d extracted_src
             if [ -d "extracted_src/AxiomIDE" ]; then
@@ -41,19 +42,19 @@ jobs:
       - name: Build Debug APK
         run: gradle assembleDebug --stacktrace
 
-      - name: Rename APK for Release
-        run: cp app/build/outputs/apk/debug/*.apk AxiomIDE-v3.0.0.apk
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/*.apk AxiomIDE-v3.1.0.apk
 
-      - name: Upload Build Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AxiomIDE-v3-apk
-          path: AxiomIDE-v3.0.0.apk
+          name: AxiomIDE-v3.1.0-apk
+          path: AxiomIDE-v3.1.0.apk
 
-      - name: Publish to GitHub Releases (on version tags like v3.0.0)
+      - name: Publish to GitHub Releases on version tags
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: AxiomIDE-v3.0.0.apk
+          files: AxiomIDE-v3.1.0.apk
           generate_release_notes: true
           
