@@ -28,16 +28,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare base source and apply Axiom Code overlay
+      - name: Fetch base source + submodules and apply Axiom Code overlay
         run: |
           if [ -f "Acode-main.zip" ]; then
             unzip -qo Acode-main.zip -d .
             mv Acode-main AxiomCode-main
+            if [ -z "$(ls -A AxiomCode-main/codemirror-lsp-client 2>/dev/null)" ]; then
+              rm -rf AxiomCode-main/codemirror-lsp-client
+              git clone --depth 1 https://github.com/Acode-Foundation/codemirror-lsp-client.git AxiomCode-main/codemirror-lsp-client
+            fi
           else
-            git clone --depth 1 --branch main https://github.com/Acode-Foundation/Acode.git AxiomCode-main
+            git clone --depth 1 --recurse-submodules --branch main https://github.com/Acode-Foundation/Acode.git AxiomCode-main
           fi
 
-          unzip -qo AxiomCode-overlay.zip -d _overlay
+          OVERLAY_ZIP=""
+          for f in AxiomCode-overlay-v2.zip AxiomCode-overlay.zip; do
+            if [ -f "$f" ]; then OVERLAY_ZIP="$f"; break; fi
+          done
+          if [ -z "$OVERLAY_ZIP" ]; then
+            echo "::error::Upload AxiomCode-overlay.zip (or AxiomCode-overlay-v2.zip) to the repo root."
+            exit 1
+          fi
+
+          unzip -qo "$OVERLAY_ZIP" -d _overlay
           bash _overlay/apply-overlay.sh AxiomCode-main
           rm -rf _overlay
 
