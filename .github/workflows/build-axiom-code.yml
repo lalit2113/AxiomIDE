@@ -36,6 +36,22 @@ jobs:
         with:
           node-version: "lts/*"
 
+      - name: Configure Google Maven Central Mirror (avoids HTTP 429)
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat << 'EOF' > ~/.gradle/init.d/maven-mirror.gradle
+          allprojects {
+              buildscript {
+                  repositories {
+                      maven { url "https://maven-central.storage-download.googleapis.com/maven2" }
+                  }
+              }
+              repositories {
+                  maven { url "https://maven-central.storage-download.googleapis.com/maven2" }
+              }
+          }
+          EOF
+
       - name: Install dependencies and setup Cordova
         working-directory: build_workspace
         run: |
