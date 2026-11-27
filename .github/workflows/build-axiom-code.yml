@@ -26,6 +26,8 @@ jobs:
           if [ -f "AxiomCode-Overlay-v1.0.0.zip" ]; then
             unzip -o AxiomCode-Overlay-v1.0.0.zip -d build_workspace
           fi
+          # Patch hardcoded Acode R/BuildConfig imports in native plugins to com.axiom.code
+          grep -rl "com\.foxdebug\.acode\.\(R\|BuildConfig\)" build_workspace/src/plugins | xargs -r sed -i 's/com\.foxdebug\.acode\.R/com.axiom.code.R/g; s/com\.foxdebug\.acode\.BuildConfig/com.axiom.code.BuildConfig/g'
 
       - uses: actions/setup-java@v4
         with:
