@@ -1,0 +1,123 @@
+name: Build Axiom Code APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      icon:
+        description: "Launcher icon to bake into the APK"
+        required: true
+        default: "obsidian_dark"
+        type: choice
+        options:
+          - obsidian_dark
+          - ceramic_light
+          - midnight_cobalt
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare base source and apply Axiom Code overlay
+        run: |
+          if [ -f "Acode-main.zip" ]; then
+            unzip -qo Acode-main.zip -d .
+            mv Acode-main AxiomCode-main
+          else
+            git clone --depth 1 --branch main https://github.com/Acode-Foundation/Acode.git AxiomCode-main
+          fi
+
+          unzip -qo AxiomCode-overlay.zip -d _overlay
+          bash _overlay/apply-overlay.sh AxiomCode-main
+          rm -rf _overlay
+
+      - name: Apply selected app icon
+        env:
+          SELECTED_ICON: ${{ inputs.icon || 'obsidian_dark' }}
+        run: |
+          ICON_FILE="axiom_icon_${SELECTED_ICON}.jpg"
+          if [ ! -f "$ICON_FILE" ] && [ -f "AxiomCode-main/branding/icons/$ICON_FILE" ]; then
+            ICON_FILE="AxiomCode-main/branding/icons/$ICON_FILE"
+          fi
+          if [ -f "$ICON_FILE" ]; then
+            echo "Applying launcher icon: $ICON_FILE"
+            python3 -m pip install --quiet pillow
+            python3 - "$ICON_FILE" << 'EOF'
+          import sys
+          from pathlib import Path
+          from PIL import Image, ImageDraw
+
+          img = Image.open(sys.argv[1])
+          res_dir = Path("AxiomCode-main/res/android")
+          sizes = {
+              "mipmap-mdpi": 48,
+              "mipmap-hdpi": 72,
+              "mipmap-xhdpi": 96,
+              "mipmap-xxhdpi": 144,
+              "mipmap-xxxhdpi": 192,
+          }
+          for folder, size in sizes.items():
+              out = res_dir / folder
+              out.mkdir(parents=True, exist_ok=True)
+              sq = img.resize((size, size), Image.Resampling.LANCZOS).convert("RGBA")
+              sq.save(out / "ic_launcher.webp", "WEBP", quality=92)
+              mask = Image.new("L", (size, size), 0)
+              ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
+              rd = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+              rd.paste(sq, (0, 0), mask)
+              rd.save(out / "ic_launcher_round.webp", "WEBP", quality=92)
+          EOF
+          fi
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install dependencies & Cordova setup
+        working-directory: AxiomCode-main
+        env:
+          NPM_CONFIG_LEGACY_PEER_DEPS: "true"
+        run: |
+          npm install
+          npm install -g cordova
+          npm run setup
+
+      - name: Build Axiom Code APK
+        working-directory: AxiomCode-main
+        env:
+          NPM_CONFIG_LEGACY_PEER_DEPS: "true"
+        run: |
+          node utils/storage_manager.mjs y
+          npm run build paid dev apk
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk ../AxiomCode-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AxiomCode-debug-apk
+          path: AxiomCode-debug.apk
+          if-no-files-found: error
+
+      - name: Publish to GitHub Release (on v* tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: AxiomCode-debug.apk
+          
