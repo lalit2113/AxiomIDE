@@ -38,7 +38,9 @@ jobs:
               git clone --depth 1 https://github.com/Acode-Foundation/codemirror-lsp-client.git AxiomCode-main/codemirror-lsp-client
             fi
           else
-            git clone --depth 1 --recurse-submodules --branch main https://github.com/Acode-Foundation/Acode.git AxiomCode-main
+            git clone --depth 1 https://github.com/Acode-Foundation/Acode.git AxiomCode-main
+            rm -rf AxiomCode-main/codemirror-lsp-client
+            git clone --depth 1 https://github.com/Acode-Foundation/codemirror-lsp-client.git AxiomCode-main/codemirror-lsp-client
           fi
 
           shopt -s nullglob
