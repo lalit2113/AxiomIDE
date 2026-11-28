@@ -65,6 +65,24 @@ jobs:
           cp -rf _overlay/overlay/. AxiomCode-main/
           rm -rf _overlay
 
+          # Remove any stale file:src/plugins/* entries if upstream moved a plugin to npm
+          python3 - << 'EOF'
+          import json
+          from pathlib import Path
+
+          pkg_path = Path("AxiomCode-main/package.json")
+          pkg = json.loads(pkg_path.read_text(encoding="utf-8"))
+          for sec in ("dependencies", "devDependencies", "optionalDependencies"):
+              deps = pkg.get(sec, {})
+              for k, v in list(deps.items()):
+                  if isinstance(v, str) and v.startswith("file:"):
+                      rel = v[5:]
+                      if not (Path("AxiomCode-main") / rel / "package.json").exists():
+                          print(f"Removing stale local plugin ref: {k} -> {v}")
+                          del deps[k]
+          pkg_path.write_text(json.dumps(pkg, indent=2) + "\n", encoding="utf-8")
+          EOF
+
       - name: Apply selected app icon
         env:
           SELECTED_ICON: ${{ inputs.icon || 'obsidian_dark' }}
