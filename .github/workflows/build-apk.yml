@@ -56,7 +56,13 @@ jobs:
           fi
 
           unzip -qo "$OVERLAY_ZIP" -d _overlay
-          bash _overlay/apply-overlay.sh AxiomCode-main
+          rm -f AxiomCode-main/src/lib/acode.js
+          find AxiomCode-main -type f -name '*ic_acode_*' -print0 | while IFS= read -r -d '' f; do
+            dir="$(dirname "$f")"
+            base="$(basename "$f")"
+            mv -f "$f" "$dir/${base//ic_acode_/ic_axiom_}"
+          done || true
+          cp -rf _overlay/overlay/. AxiomCode-main/
           rm -rf _overlay
 
       - name: Apply selected app icon
