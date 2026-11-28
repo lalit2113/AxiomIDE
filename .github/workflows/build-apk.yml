@@ -41,12 +41,15 @@ jobs:
             git clone --depth 1 --recurse-submodules --branch main https://github.com/Acode-Foundation/Acode.git AxiomCode-main
           fi
 
+          shopt -s nullglob
           OVERLAY_ZIP=""
-          for f in AxiomCode-overlay-v2.zip AxiomCode-overlay.zip; do
+          for f in AxiomCode-overlay-api.zip AxiomCode-overlay-v3.zip AxiomCode-overlay-v2.zip AxiomCode-overlay.zip AxiomCode-overlay*.zip; do
             if [ -f "$f" ]; then OVERLAY_ZIP="$f"; break; fi
           done
+          echo "Using overlay: $OVERLAY_ZIP"
           if [ -z "$OVERLAY_ZIP" ]; then
-            echo "::error::Upload AxiomCode-overlay.zip (or AxiomCode-overlay-v2.zip) to the repo root."
+            echo "::error::No AxiomCode-overlay*.zip found in repo root."
+            ls -la
             exit 1
           fi
 
