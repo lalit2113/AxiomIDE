@@ -28,34 +28,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch base source + submodules and apply Axiom Code overlay
+      - name: Fetch Acode v1.13.5 and apply Axiom Code overlay
         run: |
-          if [ -f "Acode-main.zip" ]; then
-            unzip -qo Acode-main.zip -d .
-            mv Acode-main AxiomCode-main
-            if [ -z "$(ls -A AxiomCode-main/codemirror-lsp-client 2>/dev/null)" ]; then
-              rm -rf AxiomCode-main/codemirror-lsp-client
-              git clone --depth 1 https://github.com/Acode-Foundation/codemirror-lsp-client.git AxiomCode-main/codemirror-lsp-client
-            fi
+          if [ -f "Acode-1.13.5.zip" ]; then
+            unzip -qo Acode-1.13.5.zip -d .
+            mv Acode-1.13.5 AxiomCode-main
           else
-            git clone --depth 1 https://github.com/Acode-Foundation/Acode.git AxiomCode-main
-            rm -rf AxiomCode-main/codemirror-lsp-client
-            git clone --depth 1 https://github.com/Acode-Foundation/codemirror-lsp-client.git AxiomCode-main/codemirror-lsp-client
+            git clone --depth 1 --branch v1.13.5 https://github.com/Acode-Foundation/Acode.git AxiomCode-main
           fi
 
-          shopt -s nullglob
-          OVERLAY_ZIP=""
-          for f in AxiomCode-overlay-api.zip AxiomCode-overlay-v3.zip AxiomCode-overlay-v2.zip AxiomCode-overlay.zip AxiomCode-overlay*.zip; do
-            if [ -f "$f" ]; then OVERLAY_ZIP="$f"; break; fi
-          done
-          echo "Using overlay: $OVERLAY_ZIP"
-          if [ -z "$OVERLAY_ZIP" ]; then
-            echo "::error::No AxiomCode-overlay*.zip found in repo root."
-            ls -la
+          if [ ! -f "AxiomCode-1.13.5-overlay.zip" ]; then
+            echo "::error::Upload AxiomCode-1.13.5-overlay.zip to the repo root."
             exit 1
           fi
 
-          unzip -qo "$OVERLAY_ZIP" -d _overlay
+          unzip -qo AxiomCode-1.13.5-overlay.zip -d _overlay
           rm -f AxiomCode-main/src/lib/acode.js
           find AxiomCode-main -type f -name '*ic_acode_*' -print0 | while IFS= read -r -d '' f; do
             dir="$(dirname "$f")"
@@ -64,25 +51,6 @@ jobs:
           done || true
           cp -rf _overlay/overlay/. AxiomCode-main/
           rm -rf _overlay
-
-          # Remove any stale file:src/plugins/* entries if upstream moved a plugin to npm
-          python3 - << 'EOF'
-          import json
-          from pathlib import Path
-
-          pkg_path = Path("AxiomCode-main/package.json")
-          pkg = json.loads(pkg_path.read_text(encoding="utf-8"))
-          for sec in ("dependencies", "devDependencies", "optionalDependencies"):
-              deps = pkg.get(sec, {})
-              for k, v in list(deps.items()):
-                  if isinstance(v, str) and v.startswith("file:"):
-                      rel = v[5:]
-                      if not (Path("AxiomCode-main") / rel / "package.json").exists():
-                          print(f"Removing stale local plugin ref: {k} -> {v}")
-                          del deps[k]
-          pkg_path.write_text(json.dumps(pkg, indent=2) + "\n", encoding="utf-8")
-          EOF
-          rm -f AxiomCode-main/package-lock.json
 
       - name: Apply selected app icon
         env:
@@ -93,7 +61,6 @@ jobs:
             ICON_FILE="AxiomCode-main/branding/icons/$ICON_FILE"
           fi
           if [ -f "$ICON_FILE" ]; then
-            echo "Applying launcher icon: $ICON_FILE"
             python3 -m pip install --quiet pillow
             python3 - "$ICON_FILE" << 'EOF'
           import sys
@@ -140,6 +107,7 @@ jobs:
         run: |
           npm install
           npm install -g cordova
+          rm -rf platforms plugins
           cordova platform add android
           npm run setup
 
