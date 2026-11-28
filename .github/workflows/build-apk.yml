@@ -82,6 +82,7 @@ jobs:
                           del deps[k]
           pkg_path.write_text(json.dumps(pkg, indent=2) + "\n", encoding="utf-8")
           EOF
+          rm -f AxiomCode-main/package-lock.json
 
       - name: Apply selected app icon
         env:
@@ -127,10 +128,10 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: "lts/*"
+          node-version: "22"
 
       - name: Install dependencies & Cordova setup
         working-directory: AxiomCode-main
@@ -139,6 +140,7 @@ jobs:
         run: |
           npm install
           npm install -g cordova
+          cordova platform add android
           npm run setup
 
       - name: Build Axiom Code APK
